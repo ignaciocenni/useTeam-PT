@@ -1,4 +1,5 @@
 import { CreateBoardDto } from './dto/create-board.dto';
+import { UpdateBoardDto } from './dto/update-board.dto';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -32,6 +33,16 @@ export class BoardsService {
   // Obtener un tablero por ID
   async getBoardById(boardId: string) {
     return await this.boardModel.findById(boardId).exec();
+  }
+
+  // Actualizar un tablero
+  async updateBoard(boardId: string, updates: UpdateBoardDto) {
+    // findByIdAndUpdate: Busca por ID, aplica los 'updates' y devuelve el resultado.
+    return await this.boardModel
+      .findByIdAndUpdate(boardId, updates, {
+        new: true, // CLAVE: Devuelve el documento DESPUÉS de la actualización (el que tiene los cambios).
+      })
+      .exec();
   }
 
   // Eliminar un tablero
