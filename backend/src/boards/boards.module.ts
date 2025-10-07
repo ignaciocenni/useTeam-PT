@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BoardsController } from './boards.controller';
+import { ColumnsController } from './columns.controller';
 import { BoardsService } from './boards.service';
 import { BoardSchema, Board } from './board.schema';
 import { ColumnSchema, Column } from './column.schema';
 import { CardSchema, Card } from './card.schema';
+
 @Module({
   imports: [
     // Importamos los schemas para que Mongoose sepa qué Modelos usar.
@@ -14,9 +16,8 @@ import { CardSchema, Card } from './card.schema';
       { name: Card.name, schema: CardSchema },
     ]),
   ],
-  controllers: [BoardsController],
+  controllers: [BoardsController, ColumnsController],
   providers: [BoardsService],
-  // Exportamos el service para que otros módulos (si los hubiera) puedan usarlo.
   exports: [BoardsService],
 })
 export class BoardsModule {}
