@@ -13,25 +13,33 @@ const api = axios.create({
 
 // Obtener todos los tableros
 export const getAllBoards = async () => {
-  const response = await api.get("/boards");
+  const response = await api.get("/api/v1/boards");
   return response.data; // Axios guarda los datos en response.data
 };
 
 // Crear un nuevo tablero
 export const createBoard = async (title, description) => {
-  const response = await api.post("/boards", { title, description });
+  const response = await api.post("/api/v1/boards", { title, description });
   return response.data;
 };
 
 // Actualizar un tablero
 export const updateBoard = async (boardId, updates) => {
-  const response = await api.patch(`/boards/${boardId}`, updates);
+  const response = await api.patch(`/api/v1/boards/${boardId}`, updates);
   return response.data;
 };
 
 // Eliminar un tablero
 export const deleteBoard = async (boardId) => {
-  const response = await api.delete(`/boards/${boardId}`);
+  const response = await api.delete(`/api/v1/boards/${boardId}`);
+  return response.data;
+};
+
+// Obtener un tablero por ID
+export const getBoard = async (boardId) => {
+  // Ruta: /api/v1/boards/:boardId
+  const response = await api.get(`/api/v1/boards/${boardId}`);
+  // El backend devuelve Board con Columns y Cards anidadas
   return response.data;
 };
 
@@ -39,13 +47,13 @@ export const deleteBoard = async (boardId) => {
 
 // Obtener columnas de un tablero
 export const getColumnsByBoard = async (boardId) => {
-  const response = await api.get(`/boards/${boardId}/columns`);
+  const response = await api.get(`/api/v1/boards/${boardId}/columns`);
   return response.data;
 };
 
 // Crear una columna
 export const createColumn = async (boardId, title, position) => {
-  const response = await api.post(`/boards/${boardId}/columns`, {
+  const response = await api.post(`/api/v1/boards/${boardId}/columns`, {
     title,
     position,
   });
@@ -54,7 +62,9 @@ export const createColumn = async (boardId, title, position) => {
 
 // Eliminar una columna
 export const deleteColumn = async (boardId, columnId) => {
-  const response = await api.delete(`/boards/${boardId}/columns/${columnId}`);
+  const response = await api.delete(
+    `/api/v1/boards/${boardId}/columns/${columnId}`
+  );
   return response.data;
 };
 
@@ -63,7 +73,7 @@ export const deleteColumn = async (boardId, columnId) => {
 // Obtener tarjetas de una columna
 export const getCardsByColumn = async (boardId, columnId) => {
   const response = await api.get(
-    `/boards/${boardId}/columns/${columnId}/cards`
+    `/api/v1/boards/${boardId}/columns/${columnId}/cards`
   );
   return response.data;
 };
@@ -77,7 +87,7 @@ export const createCard = async (
   position
 ) => {
   const response = await api.post(
-    `/boards/${boardId}/columns/${columnId}/cards`,
+    `/api/v1/boards/${boardId}/columns/${columnId}/cards`,
     {
       title,
       description,
@@ -90,7 +100,7 @@ export const createCard = async (
 // Actualizar una tarjeta (moverla, cambiar texto, etc.)
 export const updateCard = async (boardId, columnId, cardId, updates) => {
   const response = await api.patch(
-    `/boards/${boardId}/columns/${columnId}/cards/${cardId}`,
+    `/api/v1/boards/${boardId}/columns/${columnId}/cards/${cardId}`,
     updates
   );
   return response.data;
@@ -99,7 +109,7 @@ export const updateCard = async (boardId, columnId, cardId, updates) => {
 // Eliminar una tarjeta
 export const deleteCard = async (boardId, columnId, cardId) => {
   const response = await api.delete(
-    `/boards/${boardId}/columns/${columnId}/cards/${cardId}`
+    `/api/v1/boards/${boardId}/columns/${columnId}/cards/${cardId}`
   );
   return response.data;
 };

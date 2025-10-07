@@ -1,17 +1,23 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import * as mongoose from 'mongoose'; // <-- ¡Necesario!
+import { Card } from './card.schema'; // <-- ¡Necesario! Ajusta la ruta
 
-// Define cómo se ve una Columna en MongoDB
+// Define cómo se ve una Columna (Column) en MongoDB
 @Schema({ timestamps: true })
 export class Column extends Document {
   @Prop({ required: true })
-  title: string; // ej: "To Do", "In Progress", "Done"
+  title: string;
 
   @Prop({ required: true })
-  boardId: string; // ID del tablero al que pertenece
+  boardId: string; // Referencia al tablero padre
 
-  @Prop({ default: 0 })
-  position: number; // Posición de la columna en el tablero
+  @Prop({ required: true })
+  position: number;
+
+  // 💡 FIX CRÍTICO: Definición de la relación 1:N (Array de ObjectIds referenciando 'Card')
+  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card' }] })
+  cards: Card[]; // Este campo permite el populate de las tarjetas
 }
 
 export const ColumnSchema = SchemaFactory.createForClass(Column);

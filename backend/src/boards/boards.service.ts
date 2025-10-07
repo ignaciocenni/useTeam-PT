@@ -1,7 +1,7 @@
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Board } from './board.schema';
@@ -32,8 +32,27 @@ export class BoardsService {
   }
 
   // Obtener un tablero por ID
-  async getBoardById(boardId: string) {
-    return await this.boardModel.findById(boardId).exec();
+  async getBoardById(id: string): Promise<Board> {
+    // SOLUCIÓN: Usamos .populate() para obtener las columnas anidadas.
+    // 'columns' es el nombre de la propiedad en el esquema de Board.
+    const board = await this.boardModel
+      .findById(id)
+      .populate({
+        path: 'columns', // Hacemos populate de las Columnas
+        model: 'Column', // Nombre del modelo de Columnas (Mongoose)
+        // 💡 CRÍTICO: Anidamos otro populate para que cada Columna traiga sus Tarjetas.
+        populate: {
+          path: 'cards',
+          model: 'Card', // Nombre del modelo de Tarjetas (Mongoose)
+        },
+      })
+      .exec(); // Ejecutamos la consulta
+
+    if (!board) {
+      throw new NotFoundException(`Board with ID \"${id}\" not found`);
+    }
+
+    return board;
   }
 
   // Actualizar un tablero
@@ -55,12 +74,24 @@ export class BoardsService {
 
   // Crear una columna en un tablero
   async createColumn(boardId: string, title: string, position: number) {
+    // 1. Crear y guardar la columna
     const newColumn = new this.columnModel({
       boardId,
       title,
       position,
     });
-    return await newColumn.save();
+    const savedColumn = await newColumn.save(); // Guardamos el resultado
+
+    // FIX CRÍTICO: Vinculamos la columna al tablero padre.
+    // Usamos $push para añadir el ID de la columna al array 'columns' del Board.
+    await this.boardModel.findByIdAndUpdate(
+      boardId,
+      { $push: { columns: savedColumn._id } },
+      { new: true },
+    );
+
+    // 2. Devolver la columna creada
+    return savedColumn; // Devolvemos la columna con su _id
   }
 
   // Obtener todas las columnas de un tablero
