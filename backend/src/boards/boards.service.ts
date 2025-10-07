@@ -1,5 +1,6 @@
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
+import { UpdateColumnDto } from './dto/update-column.dto';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -69,6 +70,15 @@ export class BoardsService {
       .sort({ position: 1 })
       .exec();
     // .sort({ position: 1 }) = ordenar por posición ascendente
+  }
+
+  // Actualizar una columna
+  async updateColumn(columnId: string, updates: UpdateColumnDto) {
+    return await this.columnModel
+      .findByIdAndUpdate(columnId, updates, {
+        new: true, // Devuelve el documento DESPUÉS de la actualización
+      })
+      .exec();
   }
 
   // Eliminar una columna
