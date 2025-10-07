@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BoardsController } from './boards.controller';
 import { ColumnsController } from './columns.controller';
+import { CardsController } from './cards.controller';
 import { BoardsService } from './boards.service';
+import { BoardsGateway } from './boards.gateway';
 import { BoardSchema, Board } from './board.schema';
 import { ColumnSchema, Column } from './column.schema';
 import { CardSchema, Card } from './card.schema';
@@ -16,8 +18,8 @@ import { CardSchema, Card } from './card.schema';
       { name: Card.name, schema: CardSchema },
     ]),
   ],
-  controllers: [BoardsController, ColumnsController],
-  providers: [BoardsService],
-  exports: [BoardsService],
+  controllers: [BoardsController, ColumnsController, CardsController],
+  providers: [BoardsService, BoardsGateway],
+  exports: [BoardsService, BoardsGateway],
 })
 export class BoardsModule {}

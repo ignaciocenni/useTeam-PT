@@ -9,29 +9,36 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { BoardsService } from './boards.service'; // Usamos el service existente
+import { BoardsService } from './boards.service';
+import { BoardsGateway } from './boards.gateway';
 import { CreateCardDto } from './dto/create-card.dto';
 import { UpdateCardDto } from './dto/update-card.dto';
 
 // La ruta anidada: /boards/:boardId/columns/:columnId/cards
 @Controller('boards/:boardId/columns/:columnId/cards')
 export class CardsController {
-  constructor(private readonly boardsService: BoardsService) {}
+  constructor(
+    private readonly boardsService: BoardsService,
+    private readonly boardsGateway: BoardsGateway,
+  ) {}
 
-  // 🆕==================== POST /.../:columnId/cards ====================
-  // Crea una tarjeta en la columna especificada
+  // ==================== POST /.../cards ====================
   @Post()
   async create(
-    @Param('columnId') columnId: string, // Captura el ID de la columna
+    @Param('columnId') columnId: string,
     @Body() createCardDto: CreateCardDto,
   ) {
-    // Mapeamos el DTO a los argumentos que espera el service
-    return this.boardsService.createCard(
+    const newCard = await this.boardsService.createCard(
       columnId,
       createCardDto.title,
       createCardDto.description,
       createCardDto.position,
     );
+
+    // EMITIR EVENTO: Notificamos a todos los clientes que se creó una tarjeta
+    this.boardsGateway.emitBoardUpdate('cardCreated', newCard); // PENDIENTE: Usar un ID de Tablero si fuera más específico
+
+    return newCard;
   }
 
   // ==================== GET /.../:columnId/cards ====================
@@ -42,24 +49,33 @@ export class CardsController {
   }
 
   // ==================== PATCH /.../cards/:cardId ====================
-  // Actualiza una tarjeta (renombrar, cambiar descripción, mover posición o columna)
-  // Nota: Mover a otra columna se maneja enviando { columnId: "nuevo_id" } en el body
   @Patch(':cardId')
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('cardId') cardId: string,
     @Body() updateCardDto: UpdateCardDto,
   ) {
-    // updateCard espera el DTO (UpdateCardDto hereda de Partial<Card> por el mapped-types)
-    return this.boardsService.updateCard(cardId, updateCardDto);
+    const updatedCard = await this.boardsService.updateCard(
+      cardId,
+      updateCardDto,
+    );
+
+    // EMITIR EVENTO: Notificamos una actualización (incluye movimiento de posición o columna)
+    this.boardsGateway.emitBoardUpdate('cardUpdated', updatedCard);
+
+    return updatedCard;
   }
 
   // ==================== DELETE /.../cards/:cardId ====================
-  // Elimina una tarjeta
   @Delete(':cardId')
   @HttpCode(HttpStatus.OK)
   async remove(@Param('cardId') cardId: string) {
+    // OPCIÓN MÁS LIMPIA: No asignamos la variable
     await this.boardsService.deleteCard(cardId);
+
+    // EMITIR EVENTO: Notificamos que se eliminó una tarjeta
+    this.boardsGateway.emitBoardUpdate('cardDeleted', { id: cardId });
+
     return { status: 200, message: 'Tarjeta eliminada con éxito.' };
   }
 }
