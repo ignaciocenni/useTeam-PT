@@ -2,14 +2,12 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BoardsController } from './boards.controller';
 import { BoardsService } from './boards.service';
-import { Board, BoardSchema } from './board.schema';
-import { Column, ColumnSchema } from './column.schema';
-import { Card, CardSchema } from './card.schema';
-
+import { BoardSchema, Board } from './board.schema';
+import { ColumnSchema, Column } from './column.schema';
+import { CardSchema, Card } from './card.schema';
 @Module({
   imports: [
-    // Registramos los schemas en Mongoose
-    // Esto crea automáticamente los Models
+    // Importamos los schemas para que Mongoose sepa qué Modelos usar.
     MongooseModule.forFeature([
       { name: Board.name, schema: BoardSchema },
       { name: Column.name, schema: ColumnSchema },
@@ -18,6 +16,7 @@ import { Card, CardSchema } from './card.schema';
   ],
   controllers: [BoardsController],
   providers: [BoardsService],
-  exports: [BoardsService], // Exportamos el service por si otros módulos lo necesitan
+  // Exportamos el service para que otros módulos (si los hubiera) puedan usarlo.
+  exports: [BoardsService],
 })
 export class BoardsModule {}

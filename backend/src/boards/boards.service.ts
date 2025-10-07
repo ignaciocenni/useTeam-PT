@@ -1,3 +1,4 @@
+import { CreateBoardDto } from './dto/create-board.dto';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -17,12 +18,10 @@ export class BoardsService {
   // ==================== BOARDS ====================
 
   // Crear un nuevo tablero
-  async createBoard(title: string, description?: string) {
-    const newBoard = new this.boardModel({
-      title,
-      description,
-    });
-    return await newBoard.save(); // Guarda en MongoDB y devuelve el documento creado
+  // REFACTORIZADO para recibir el DTO completo, siguiendo la convención de NestJS
+  async createBoard(createBoardDto: CreateBoardDto) {
+    const newBoard = new this.boardModel(createBoardDto); // Pasamos el objeto directamente
+    return await newBoard.save();
   }
 
   // Obtener todos los tableros
