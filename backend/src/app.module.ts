@@ -1,24 +1,28 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BoardsModule } from './boards/boards.module';
 
 @Module({
   imports: [
-    // Configuración para leer el archivo .env
+    // 1. Módulos de Configuración y DB (tus configuraciones previas)
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    
-    // Conexión a MongoDB Atlas (con validación)
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
+      useFactory: (configService: ConfigService) => ({
+        // Usamos una variable de entorno o un fallback
+        uri:
+          configService.get<string>('MONGODB_URI') ||
+          'mongodb://localhost:27017/useteam',
       }),
       inject: [ConfigService],
     }),
+
+    BoardsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
