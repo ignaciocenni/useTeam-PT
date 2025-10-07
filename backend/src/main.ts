@@ -4,17 +4,19 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // Configuramos el ValidationPipe globalmente
-  app.useGlobalPipes(
-    new ValidationPipe({
-      // Permite que solo las propiedades definidas en el DTO pasen.
-      // Si envían datos extra, serán descartados. ¡Mejor seguridad!
-      whitelist: true,
-    }),
-  );
 
-  // Configuramos el prefijo global (opcional, pero buena práctica)
+  // Prefijo global para todas las rutas
   app.setGlobalPrefix('api/v1');
-  await app.listen(process.env.PORT ?? 3000);
+
+  // Validación global
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+
+  // CORS - Permite que el frontend se conecte
+  app.enableCors({
+    origin: 'http://localhost:5173', // URL del frontend
+    credentials: true,
+  });
+
+  await app.listen(3000);
 }
 bootstrap();
