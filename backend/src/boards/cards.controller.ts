@@ -28,6 +28,7 @@ export class CardsController {
     @Param('columnId') columnId: string,
     @Body() createCardDto: CreateCardDto,
   ) {
+    // 1. Lógica del Service: Crea la tarjeta y la guarda en DB
     const newCard = await this.boardsService.createCard(
       columnId,
       createCardDto.title,
@@ -35,7 +36,7 @@ export class CardsController {
       createCardDto.position,
     );
 
-    // EMITIR EVENTO: Notificamos a todos los clientes que se creó una tarjeta
+    // LÓGICA DE TIEMPO REAL: Emitir el evento WebSocket
     this.boardsGateway.emitBoardUpdate('cardCreated', newCard); // PENDIENTE: Usar un ID de Tablero si fuera más específico
 
     return newCard;
