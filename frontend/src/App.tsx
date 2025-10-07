@@ -1,5 +1,12 @@
 import { useBoard, BoardProvider } from "./context/BoardContext";
 import { Card } from "./types/board";
+import {
+  DndContext,
+  useSensors,
+  useSensor,
+  PointerSensor,
+} from "@dnd-kit/core";
+import { ColumnContainer } from "./components/ColumnContainer"; // <-- Importado correctamente
 
 // ----------------------------------------------------
 // Componente principal de visualización del tablero
@@ -26,6 +33,31 @@ function BoardPageContent() {
     }
   };
 
+  // Función que se llama cuando se suelta un elemento
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event; // 'active' es el elemento que se arrastró; 'over' es el elemento sobre el que se soltó.
+
+    // Si soltamos el elemento fuera de cualquier zona válida, no hacemos nada
+    if (!over) {
+      console.log("Arrastre finalizado fuera de una zona válida.");
+      return;
+    }
+
+    console.log(`Elemento arrastrado (ID): ${active.id}`);
+    console.log(`Elemento soltado sobre (ID): ${over.id}`);
+
+    // Aquí irá la lógica para mover la tarjeta y llamar a la API
+  };
+
+  // Definimos el sensor de puntero con un pequeño retraso
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // La persona debe mover el puntero al menos 8px para considerarlo arrastre
+      },
+    })
+  );
+
   // --- Renderizado de Estado ---
   if (loading) {
     return (
@@ -50,44 +82,41 @@ function BoardPageContent() {
   // --- Renderizado del Tablero ---
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* ... header code ... */}
+      <header className="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 className="text-xl font-bold">{currentBoard.title}</h1>
+        {isConnected ? (
+          <span className="bg-green-500 text-xs font-semibold px-2 py-1 rounded-full">
+            WS Conectado
+          </span>
+        ) : (
+          <span className="bg-red-500 text-xs font-semibold px-2 py-1 rounded-full">
+            WS Desconectado
+          </span>
+        )}
+      </header>
 
       <main className="container mx-auto p-4">
         {/* Botón de prueba de Creación de Tarjeta */}
         <button
           onClick={handleCreateTestCard}
-          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded mb-4 shadow"
-          // 💡 FIX 1: Usamos Optional Chaining (?) para evitar el crash si 'columns' es undefined.
-          disabled={!isConnected || currentBoard.columns?.length === 0}
+          className={`bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition duration-150 mb-4 ${
+            !currentBoard.columns?.length && "opacity-50 cursor-not-allowed"
+          }`}
+          disabled={!currentBoard.columns?.length}
         >
-          {/* ... button content ... */}
+          + Crear Tarjeta (Prueba WS)
         </button>
 
-        {/* Renderizado de Columnas (estructura simple) */}
-        <div className="flex space-x-4 overflow-x-auto">
-          {/* 💡 FIX 2: Usamos || [] para garantizar que si 'columns' es undefined, mapeamos un array vacío. */}
-          {(currentBoard.columns || []).map((column) => (
-            <div
-              key={column._id}
-              className="w-80 flex-shrink-0 bg-white p-4 rounded-lg shadow-md"
-            >
-              <h3 className="text-lg font-semibold mb-3 border-b pb-2">
-                {column.title}
-              </h3>
-              {/* Renderizar tarjetas (aplicando el mismo chequeo de seguridad) */}
-              <ul className="space-y-2">
-                {(column.cards || []).map((card: Card) => (
-                  <li
-                    key={card._id}
-                    className="bg-gray-50 p-3 rounded shadow-sm text-sm"
-                  >
-                    {card.title}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        {/* 💡 2. Envolvemos el área arrastrable con DndContext */}
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <div className="flex space-x-4 overflow-x-auto">
+            {(currentBoard.columns || []).map((column) => (
+              // 💡 REEMPLAZO CRÍTICO: Usamos el componente ColumnContainer
+              // que contiene la lógica de SortableContext para las tarjetas.
+              <ColumnContainer key={column._id} column={column} />
+            ))}
+          </div>
+        </DndContext>
       </main>
     </div>
   );
