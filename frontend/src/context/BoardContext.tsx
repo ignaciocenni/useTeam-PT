@@ -314,7 +314,6 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
     [state.currentBoard, boardId]
   );
 
-  // 👇 FUNCIÓN moveCard CORREGIDA CON DISPATCH OPTIMISTA
   const moveCard = useCallback(
     async (
       cardId: string,
@@ -324,11 +323,13 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
     ) => {
       if (!state.currentBoard || !boardId) return;
 
-      console.log(
-        `[moveCard] Iniciando movimiento de tarjeta ${cardId} a columna ${destinationColumnId} posición ${newPosition}`
-      );
+      console.log("[moveCard] =====================================");
+      console.log(`[moveCard] cardId: ${cardId}`);
+      console.log(`[moveCard] sourceColumnId: ${sourceColumnId}`);
+      console.log(`[moveCard] destinationColumnId: ${destinationColumnId}`);
+      console.log(`[moveCard] newPosition: ${newPosition}`);
 
-      // 👇 1. UPDATE OPTIMISTA PRIMERO (UI instantánea)
+      // UPDATE OPTIMISTA
       dispatch({
         type: "OPTIMISTIC_CARD_MOVE",
         payload: {
@@ -342,21 +343,21 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
       try {
         const updates = {
           position: newPosition,
-          columnId: destinationColumnId,
+          columnId: destinationColumnId, // 👈 IMPORTANTE
         };
 
-        console.log(`[moveCard] Llamando API con updates:`, updates);
+        console.log("[moveCard] Updates que se enviarán:", updates);
+        console.log(
+          "[moveCard] URL:",
+          `/api/v1/boards/${boardId}/columns/${sourceColumnId}/cards/${cardId}`
+        );
 
-        // 👇 2. LLAMADA AL BACKEND (en segundo plano)
         await api.updateCard(boardId, sourceColumnId, cardId, updates);
 
         console.log("[moveCard] ✅ Movimiento persistido exitosamente");
       } catch (e: any) {
-        console.error("❌ [moveCard] Error al mover la tarjeta:", e);
-        console.error("❌ [moveCard] Detalles:", e.response?.data || e.message);
-
-        // 👇 3. En caso de error, el WS eventualmente corregirá el estado
-        // O puedes implementar un action "REVERT_OPTIMISTIC_MOVE" aquí
+        console.error("❌ [moveCard] Error:", e);
+        console.error("❌ [moveCard] Response:", e.response?.data);
       }
     },
     [state.currentBoard, boardId, dispatch]

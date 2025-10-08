@@ -1,5 +1,9 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateCardDto } from './create-card.dto';
+import { IsString, IsOptional } from 'class-validator';
 
-// Hace que 'title', 'description' y 'position' sean opcionales.
-export class UpdateCardDto extends PartialType(CreateCardDto) {}
+export class UpdateCardDto extends PartialType(CreateCardDto) {
+  @IsString()
+  @IsOptional()
+  columnId?: string;
+}
