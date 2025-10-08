@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from "react";
 import { useBoard, BoardProvider } from "./context/BoardContext";
 import { Card } from "./types/board";
 import {
@@ -5,9 +6,10 @@ import {
   useSensors,
   useSensor,
   PointerSensor,
+  DragOverlay,
+  DragStartEvent,
 } from "@dnd-kit/core";
 import { ColumnContainer } from "./components/ColumnContainer";
-import { useEffect } from "react";
 
 // ----------------------------------------------------
 // Componente principal de visualización del tablero
@@ -23,6 +25,8 @@ function BoardPageContent() {
     moveCard,
     dispatch,
   } = useBoard();
+
+  const [activeCard, setActiveCard] = useState<Card | null>(null);
 
   // 👇 NUEVO: Log temporal para debug
   useEffect(() => {
@@ -42,7 +46,7 @@ function BoardPageContent() {
     if (firstColumnId) {
       createCard(
         firstColumnId,
-        `Nueva Tarea de Prueba - ${new Date().toLocaleTimeString()}`,
+        `Nueva Tarea - ${new Date().toLocaleTimeString()}`,
         "Descripción de prueba"
       );
     }
@@ -57,9 +61,19 @@ function BoardPageContent() {
     })
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const activeData = active.data.current;
+    
+    if (activeData?.type === "Card") {
+      setActiveCard(activeData.card);
+    }
+  };
+
   // Función que se llama cuando se suelta un elemento
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
+    setActiveCard(null);
 
     // Si no hay tablero o no soltó sobre una zona válida, salimos
     if (!over || !currentBoard) return;
@@ -163,87 +177,98 @@ function BoardPageContent() {
   // --- Renderizado de Estado ---
   if (loading) {
     return (
-      <div className="p-4 text-center">
-        <h1 className="text-xl font-bold">Cargando Tablero...</h1>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h1 className="text-xl font-semibold text-gray-700">Cargando Tablero...</h1>
+        </div>
       </div>
     );
   }
 
   if (error) {
-    return <div className="p-4 text-red-600 text-center">Error: {error}</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h1 className="text-xl font-semibold text-red-700 mb-2">Error</h1>
+          <p className="text-red-600">{error}</p>
+        </div>
+      </div>
+    );
   }
 
   if (!currentBoard) {
     return (
-      <div className="p-4 text-gray-600 text-center">
-        No se seleccionó o encontró el tablero.
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-gray-400 text-6xl mb-4">📋</div>
+          <h1 className="text-xl font-semibold text-gray-600">No se encontró el tablero</h1>
+        </div>
       </div>
     );
   }
 
   // --- Renderizado del Tablero ---
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
-        <h1 className="text-xl font-bold">{currentBoard.title}</h1>
-        {isConnected ? (
-          <span className="bg-green-500 text-xs font-semibold px-2 py-1 rounded-full">
-            WS Conectado
-          </span>
-        ) : (
-          <span className="bg-red-500 text-xs font-semibold px-2 py-1 rounded-full">
-            WS Desconectado
-          </span>
-        )}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <header className="bg-white shadow-lg border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold text-gray-900">{currentBoard.title}</h1>
+              {currentBoard.description && (
+                <p className="ml-4 text-gray-600 text-sm">{currentBoard.description}</p>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm font-medium text-gray-700">
+                  {isConnected ? 'Conectado' : 'Desconectado'}
+                </span>
+              </div>
+              
+              <button
+                onClick={handleCreateTestCard}
+                className={`bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg ${
+                  !currentBoard.columns?.length && "opacity-50 cursor-not-allowed"
+                }`}
+                disabled={!currentBoard.columns?.length}
+              >
+                + Nueva Tarea
+              </button>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <main className="container mx-auto p-4">
-        {/* Botón de prueba de Creación de Tarjeta */}
-        <button
-          onClick={handleCreateTestCard}
-          className={`bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition duration-150 mb-4 ${
-            !currentBoard.columns?.length && "opacity-50 cursor-not-allowed"
-          }`}
-          disabled={!currentBoard.columns?.length}
+      <main className="max-w-7xl mx-auto p-6">
+        <DndContext 
+          sensors={sensors} 
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
         >
-          + Crear Tarjeta (Prueba WS)
-        </button>
-
-        {/* Botón de prueba de Creación de Columna */}
-        <button
-          onClick={async () => {
-            if (!currentBoard) return;
-            try {
-              await fetch(
-                `http://localhost:3000/api/v1/boards/${currentBoard._id}/columns`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    title: `Columna ${currentBoard.columns.length + 1}`,
-                    position: currentBoard.columns.length,
-                  }),
-                }
-              );
-              // Recargar el tablero para ver la nueva columna
-              window.location.reload();
-            } catch (e) {
-              console.error("Error al crear columna:", e);
-            }
-          }}
-          className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150 mb-4 ml-2"
-        >
-          + Crear Columna (Prueba)
-        </button>
-
-        {/* 💡 2. Envolvemos el área arrastrable con DndContext */}
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <div className="flex space-x-4 overflow-x-auto">
+          <div className="flex space-x-6 overflow-x-auto pb-4">
             {(currentBoard.columns || []).map((column) => (
-              // 💡 Usamos ColumnContainer para envolver la lógica de SortableContext
               <ColumnContainer key={column._id} column={column} />
             ))}
           </div>
+          
+          <DragOverlay>
+            {activeCard ? (
+              <div className="bg-blue-50 p-4 rounded-lg shadow-2xl border-2 border-blue-500 transform rotate-1 scale-110">
+                <h3 className="font-medium text-blue-900">{activeCard.title}</h3>
+                {activeCard.description && (
+                  <p className="text-sm text-blue-700 mt-1">{activeCard.description}</p>
+                )}
+                <div className="mt-2 text-xs text-blue-600 font-medium">
+                  Arrastrando...
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       </main>
     </div>

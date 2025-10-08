@@ -6,6 +6,7 @@ import React, {
   useContext,
   useEffect,
   useCallback,
+  useRef,
   Dispatch, // Asegúrate de que Dispatch esté aquí si usas useReducer
 } from "react";
 
@@ -58,6 +59,7 @@ interface BoardContextType extends BoardState {
     destinationColumnId: string,
     newPosition: number
   ) => Promise<void>;
+  dispatch: Dispatch<BoardAction>;
 }
 
 // ===================================================
@@ -91,7 +93,9 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
     // ================== EVENTOS CRUD/WS ==================
 
     case "CARD_CREATED": {
-      if (!state.currentBoard) return state;
+      if (!state.currentBoard) {
+        return state;
+      }
       const newCard = action.payload;
 
       const newColumns = state.currentBoard.columns.map((col) => {
@@ -113,7 +117,9 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
 
     // 💡 LÓGICA PARA MOVER LA TARJETA POR EVENTO WS
     case "WS_CARD_MOVED": {
-      if (!state.currentBoard) return state;
+      if (!state.currentBoard) {
+        return state;
+      }
 
       const {
         card: movedCard,
@@ -122,8 +128,8 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
       } = action.payload;
 
       const newColumns = state.currentBoard.columns.map((col) => {
-        // 1. Quitar la tarjeta de la columna de origen
-        if (col._id === sourceColumnId) {
+        // 1. Quitar la tarjeta de la columna de origen (si es diferente a la de destino)
+        if (col._id === sourceColumnId && sourceColumnId !== destinationColumnId) {
           return {
             ...col,
             cards: col.cards.filter((c) => c._id !== movedCard._id),
@@ -131,7 +137,7 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
         }
 
         // 2. Añadir/Reordenar la tarjeta en la columna de destino
-        else if (col._id === destinationColumnId) {
+        if (col._id === destinationColumnId) {
           const cards = col.cards.filter((c) => c._id !== movedCard._id); // Evitar duplicados
 
           // Insertar la tarjeta movida en su posición correcta (basada en movedCard.position)
@@ -172,7 +178,10 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
   boardId = "68e539772824cc4d0300ad88",
 }) => {
   const [state, dispatch] = useReducer(boardReducer, initialState);
-  const { isConnected, lastEvent } = useSocket(boardId);
+  const { isConnected, lastEvent, boardUsers } = useSocket(boardId);
+  
+  // Ref para rastrear eventos ya procesados (no causa re-renders)
+  const processedEventsRef = useRef<Set<string>>(new Set());
 
   // Sincronizar el estado de conexión del socket
   useEffect(() => {
@@ -182,16 +191,33 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
   // Procesar eventos WebSocket entrantes
   useEffect(() => {
     if (lastEvent) {
+      // Crear una clave única para el evento
+      const eventKey = `${lastEvent.eventName}-${lastEvent.payload?.card?._id || lastEvent.payload?.cardId || 'unknown'}-${lastEvent.payload?.timestamp || Date.now()}`;
+      
+      // Verificar si ya procesamos este evento
+      if (processedEventsRef.current.has(eventKey)) {
+        return;
+      }
+      
+      console.log("[BoardContext] Processing event:", lastEvent.eventName);
+      
+      // Marcar el evento como procesado
+      processedEventsRef.current.add(eventKey);
+      
       if (lastEvent.eventName === "cardCreated") {
+        // El payload del backend tiene la estructura: { card: Card, boardId: string, timestamp: string }
+        const cardData = lastEvent.payload.card || lastEvent.payload;
         dispatch({
           type: "CARD_CREATED",
-          payload: lastEvent.payload as types.Card,
+          payload: cardData as types.Card,
         });
       } else if (lastEvent.eventName === "cardMoved") {
         const payload = lastEvent.payload as {
           card: types.Card;
           sourceColumnId: string;
           destinationColumnId: string;
+          boardId: string;
+          timestamp: string;
         };
         dispatch({ type: "WS_CARD_MOVED", payload });
       }
@@ -280,6 +306,7 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
         fetchBoard,
         createCard,
         moveCard, // Añadimos la función de movimiento
+        dispatch, // Añadimos dispatch
       }}
     >
       {children}

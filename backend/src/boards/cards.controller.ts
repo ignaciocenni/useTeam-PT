@@ -25,23 +25,20 @@ export class CardsController {
   // ==================== POST /.../cards ====================
   @Post()
   async create(
+    @Param('boardId') boardId: string,
     @Param('columnId') columnId: string,
     @Body() createCardDto: CreateCardDto,
   ) {
     // 1. Lógica del Service: Crea la tarjeta y la guarda en DB
     const newCard = await this.boardsService.createCard(
+      boardId,
       columnId,
       createCardDto.title,
       createCardDto.description,
       createCardDto.position,
     );
 
-    // LÓGICA DE TIEMPO REAL: Emitir el evento WebSocket
-    // PENDIENTE: Usar un ID de Tablero si fuera más específico
-    // NOTA: El WS de creación se gestionará por el service/gateway para usar el boardId
-    // que viene del URL del Controller padre, pero por ahora lo dejamos genérico.
-    this.boardsGateway.emitBoardUpdate('cardCreated', newCard);
-
+    // El evento WebSocket ya se emite desde el service
     return newCard;
   }
 

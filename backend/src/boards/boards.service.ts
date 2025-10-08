@@ -125,6 +125,7 @@ export class BoardsService {
 
   // Crear una tarjeta en una columna
   async createCard(
+    boardId: string,
     columnId: string,
     title: string,
     description?: string,
@@ -136,7 +137,17 @@ export class BoardsService {
       description,
       position: position || 0,
     });
-    return await newCard.save();
+    
+    const savedCard = await newCard.save();
+
+    // Emitir evento al board específico
+    this.boardsGateway.emitToBoard(boardId, 'cardCreated', {
+      card: savedCard.toObject(),
+      boardId,
+      timestamp: new Date().toISOString()
+    });
+
+    return savedCard;
   }
 
   // Obtener todas las tarjetas de una columna
@@ -180,12 +191,13 @@ export class BoardsService {
     // 👇 NUEVO: Log después de actualizar
     console.log(`[BoardsService] Tarjeta actualizada:`, updatedCard.toObject());
 
-    // 💡 2. EMISIÓN DEL EVENTO WEBSOCKET
-
+    // 💡 2. EMISIÓN DEL EVENTO WEBSOCKET A ROOM ESPECÍFICO
     const payload = {
       card: updatedCard.toObject(),
       sourceColumnId: columnId,
       destinationColumnId: updatedCard.columnId.toString(),
+      boardId,
+      timestamp: new Date().toISOString()
     };
 
     // 👇 NUEVO: Log antes de emitir
@@ -194,7 +206,8 @@ export class BoardsService {
       payload,
     );
 
-    this.boardsGateway.emitBoardUpdate('cardMoved', payload);
+    // Usar el nuevo método para emitir solo al board específico
+    this.boardsGateway.emitToBoard(boardId, 'cardMoved', payload);
 
     return updatedCard.toObject();
   }
