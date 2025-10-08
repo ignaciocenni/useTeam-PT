@@ -27,6 +27,9 @@ export class ExportController {
   @Get()
   async getExportData(@Param('boardId') boardId: string) {
     try {
+      console.log('[EXPORT] Iniciando exportación de datos');
+
+      // Obtener el board CON populate
       const board = await this.boardsService.getBoard(boardId);
 
       if (!board) {
@@ -35,18 +38,35 @@ export class ExportController {
 
       const exportData: ExportCardData[] = [];
 
+      // Iterar sobre columnas y tarjetas
       for (const column of board.columns) {
-        for (const card of column.cards) {
-          exportData.push({
-            id: card._id?.toString() || '',
-            title: card.title,
-            description: card.description || '',
-            column: column.title,
-            createdAt: (card as any).createdAt || new Date().toISOString(),
-            position: card.position,
-          });
+        // 👇 CAST a 'any' porque column.cards puede ser ObjectId[] o Card[]
+        const columnCards = column.cards as any[];
+
+        if (columnCards && Array.isArray(columnCards)) {
+          for (const card of columnCards) {
+            // Verificar si card es un objeto poblado (tiene title) o solo un ObjectId
+            if (card && typeof card === 'object' && card.title) {
+              exportData.push({
+                id: card._id?.toString() || '',
+                title: card.title,
+                description: card.description || '',
+                column: column.title,
+                createdAt: card.createdAt || new Date().toISOString(),
+                position: card.position || 0,
+              });
+            } else {
+              console.warn('[EXPORT] ⚠️ Card no está poblada:', card);
+            }
+          }
         }
       }
+
+      console.log(
+        '[EXPORT] ✅ Datos exportados:',
+        exportData.length,
+        'tarjetas',
+      );
 
       return {
         boardId: board._id?.toString() || '',
@@ -56,7 +76,7 @@ export class ExportController {
         exportedAt: new Date().toISOString(),
       };
     } catch (error: any) {
-      console.error('[EXPORT] Error al obtener datos:', error.message);
+      console.error('[EXPORT] ❌ Error al obtener datos:', error.message);
       return {
         error: 'Error al procesar la exportación',
         details: error.message,

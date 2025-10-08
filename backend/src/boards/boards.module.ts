@@ -9,6 +9,7 @@ import { BoardsGateway } from './boards.gateway';
 import { BoardSchema, Board } from './board.schema';
 import { ColumnSchema, Column } from './column.schema';
 import { CardSchema, Card } from './card.schema';
+import { FixBoardController } from './fix-board.controller';
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { CardSchema, Card } from './card.schema';
     BoardsController,
     ColumnsController,
     CardsController,
-    ExportController, // 👈 NUEVO
+    ExportController,
+    FixBoardController,
   ],
   providers: [BoardsService, BoardsGateway],
   exports: [BoardsService, BoardsGateway],

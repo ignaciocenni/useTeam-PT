@@ -9,15 +9,15 @@ export class Column extends Document {
   @Prop({ required: true })
   title: string;
 
-  @Prop({ required: true })
-  boardId: string; // Referencia al tablero padre
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Board', required: true })
+  boardId: mongoose.Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ default: 0 })
   position: number;
 
-  // 💡 FIX CRÍTICO: Definición de la relación 1:N (Array de ObjectIds referenciando 'Card')
+  // 👇 CRÍTICO: La referencia a las cards
   @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card' }] })
-  cards: Card[]; // Este campo permite el populate de las tarjetas
+  cards: mongoose.Types.ObjectId[];
 }
 
 export const ColumnSchema = SchemaFactory.createForClass(Column);

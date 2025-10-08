@@ -32,12 +32,17 @@ export class BoardsService {
 
   // Obtener un tablero completo con sus columnas y tarjetas (para exportar)
   async getBoard(boardId: string) {
+    console.log('[GET BOARD] =====================================');
+    console.log('[GET BOARD] Buscando board:', boardId);
+
     const board = await this.boardModel
       .findById(boardId)
       .populate({
         path: 'columns',
+        model: 'Column', // 👈 CRÍTICO: Especificar el modelo
         populate: {
           path: 'cards',
+          model: 'Card', // 👈 CRÍTICO: Especificar el modelo
           options: { sort: { position: 1 } },
         },
       })
@@ -45,6 +50,30 @@ export class BoardsService {
 
     if (!board) {
       throw new Error('Board no encontrado');
+    }
+
+    console.log('[GET BOARD] ✅ Board encontrado:', board._id);
+    console.log('[GET BOARD] Título:', board.title);
+    console.log('[GET BOARD] Número de columnas:', board.columns?.length || 0);
+
+    // Log detallado de CADA columna
+    if (board.columns && Array.isArray(board.columns)) {
+      board.columns.forEach((col: any, index: number) => {
+        console.log(`[GET BOARD] Columna ${index + 1}:`);
+        console.log(`  - ID: ${col._id}`);
+        console.log(`  - Título: ${col.title}`);
+        console.log(`  - Cards: ${col.cards?.length || 0}`);
+
+        if (col.cards && col.cards.length > 0) {
+          col.cards.forEach((card: any, cardIndex: number) => {
+            console.log(
+              `    Card ${cardIndex + 1}: ${card.title} (${card._id})`,
+            );
+          });
+        }
+      });
+    } else {
+      console.log('[GET BOARD] ⚠️ board.columns no es un array o está vacío');
     }
 
     return board;
