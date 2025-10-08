@@ -209,56 +209,76 @@ export class BoardsService {
     boardId: string,
     columnId: string,
     cardId: string,
-    updateCardDto: UpdateCardDto,
-  ): Promise<Card> {
-    // 👇 NUEVO: Log para debug
-    console.log(`[BoardsService] updateCard llamado:`);
-    console.log(`  - boardId: ${boardId}`);
-    console.log(`  - columnId: ${columnId}`);
-    console.log(`  - cardId: ${cardId}`);
-    console.log(`  - updates:`, updateCardDto);
+    updateCardDto: any,
+  ) {
+    try {
+      console.log('[UPDATE CARD] =====================================');
+      console.log('[UPDATE CARD] boardId:', boardId);
+      console.log('[UPDATE CARD] columnId (origen):', columnId);
+      console.log('[UPDATE CARD] cardId:', cardId);
+      console.log('[UPDATE CARD] updates:', updateCardDto);
 
-    // 1. Buscamos y actualizamos la tarjeta en la DB
-    const updatedCard = await this.cardModel
-      .findOneAndUpdate(
-        { _id: cardId, columnId: columnId },
-        {
-          $set: {
-            ...updateCardDto,
-          },
+      // 1. Buscar la tarjeta actual
+      const card = await this.cardModel.findById(cardId).exec();
+      if (!card) {
+        throw new Error('Card no encontrada');
+      }
+
+      const oldColumnId = card.columnId.toString();
+      const newColumnId = updateCardDto.columnId || oldColumnId;
+      const movingToAnotherColumn = oldColumnId !== newColumnId;
+
+      console.log('[UPDATE CARD] oldColumnId:', oldColumnId);
+      console.log('[UPDATE CARD] newColumnId:', newColumnId);
+      console.log('[UPDATE CARD] ¿Cambio de columna?:', movingToAnotherColumn);
+
+      // 2. Actualizar los campos de la tarjeta
+      Object.assign(card, updateCardDto);
+      await card.save();
+
+      console.log('[UPDATE CARD] ✅ Card actualizada en BD');
+
+      // 3. Si cambió de columna, actualizar los arrays de ambas columnas
+      if (movingToAnotherColumn) {
+        // Remover de la columna origen
+        await this.columnModel
+          .updateOne({ _id: oldColumnId }, { $pull: { cards: cardId } })
+          .exec();
+        console.log('[UPDATE CARD] ✅ Card removida de columna origen');
+
+        // Agregar a la columna destino
+        await this.columnModel
+          .updateOne(
+            { _id: newColumnId },
+            { $addToSet: { cards: cardId } }, // addToSet evita duplicados
+          )
+          .exec();
+        console.log('[UPDATE CARD] ✅ Card agregada a columna destino');
+      }
+
+      // 4. Emitir evento WebSocket
+      this.boardsGateway.emitToBoard(boardId, 'cardMoved', {
+        card: {
+          _id: card._id,
+          title: card.title,
+          description: card.description,
+          position: card.position,
+          columnId: card.columnId,
+          createdAt: (card as any).createdAt,
         },
-        { new: true },
-      )
-      .exec();
+        sourceColumnId: oldColumnId,
+        destinationColumnId: newColumnId,
+        boardId,
+        timestamp: new Date().toISOString(),
+      });
 
-    if (!updatedCard) {
-      throw new NotFoundException(
-        `Card with ID ${cardId} not found in column ${columnId}`,
-      );
+      console.log('[UPDATE CARD] ✅ Evento WebSocket emitido');
+
+      return card;
+    } catch (error: any) {
+      console.error('[UPDATE CARD] ❌ Error:', error.message);
+      throw error;
     }
-
-    // 👇 NUEVO: Log después de actualizar
-    console.log(`[BoardsService] Tarjeta actualizada:`, updatedCard.toObject());
-
-    // 💡 2. EMISIÓN DEL EVENTO WEBSOCKET A ROOM ESPECÍFICO
-    const payload = {
-      card: updatedCard.toObject(),
-      sourceColumnId: columnId,
-      destinationColumnId: updatedCard.columnId.toString(),
-      boardId,
-      timestamp: new Date().toISOString(),
-    };
-
-    // 👇 NUEVO: Log antes de emitir
-    console.log(
-      `[BoardsService] Emitiendo evento 'cardMoved' con payload:`,
-      payload,
-    );
-
-    // Usar el nuevo método para emitir solo al board específico
-    this.boardsGateway.emitToBoard(boardId, 'cardMoved', payload);
-
-    return updatedCard.toObject();
   }
 
   // Eliminar una tarjeta
