@@ -7,12 +7,10 @@ import React, {
   useEffect,
   useCallback,
   useRef,
-  Dispatch, // Asegúrate de que Dispatch esté aquí si usas useReducer
+  Dispatch,
 } from "react";
 
-// 💡 FIX CRÍTICO: Importación Wildcard para evitar el error de ESBuild
 import * as types from "../types/board";
-
 import { useSocket } from "../hooks/useSocket";
 import * as api from "../services/api";
 
@@ -21,7 +19,6 @@ import * as api from "../services/api";
 // ===================================================
 
 interface BoardState {
-  // 💡 USAR types.Board
   currentBoard: types.Board | null;
   loading: boolean;
   error: string | null;
@@ -42,7 +39,6 @@ type BoardAction =
         destinationColumnId: string;
       };
     }
-  // 👇 NUEVO ACTION PARA UPDATE OPTIMISTA
   | {
       type: "OPTIMISTIC_CARD_MOVE";
       payload: {
@@ -61,7 +57,6 @@ interface BoardContextType extends BoardState {
     title: string,
     description?: string
   ) => Promise<void>;
-  // Firma actualizada
   moveCard: (
     cardId: string,
     sourceColumnId: string,
@@ -99,8 +94,6 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
     case "WS_CONNECTION_CHANGE":
       return { ...state, isConnected: action.payload };
 
-    // ================== EVENTOS CRUD/WS ==================
-
     case "CARD_CREATED": {
       if (!state.currentBoard) {
         return state;
@@ -109,7 +102,6 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
 
       const newColumns = state.currentBoard.columns.map((col) => {
         if (col._id === newCard.columnId) {
-          // CLAVE: Asegurarse de que la nueva tarjeta se agregue a la posición correcta
           const updatedCards = [...col.cards, newCard].sort(
             (a, b) => a.position - b.position
           );
@@ -124,7 +116,6 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
       };
     }
 
-    // 💡 LÓGICA PARA MOVER LA TARJETA POR EVENTO WS
     case "WS_CARD_MOVED": {
       if (!state.currentBoard) {
         return state;
@@ -137,7 +128,6 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
       } = action.payload;
 
       const newColumns = state.currentBoard.columns.map((col) => {
-        // 1. Quitar la tarjeta de la columna de origen (si es diferente a la de destino)
         if (
           col._id === sourceColumnId &&
           sourceColumnId !== destinationColumnId
@@ -148,13 +138,9 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
           };
         }
 
-        // 2. Añadir/Reordenar la tarjeta en la columna de destino
         if (col._id === destinationColumnId) {
-          const cards = col.cards.filter((c) => c._id !== movedCard._id); // Evitar duplicados
-
-          // Insertar la tarjeta movida en su posición correcta (basada en movedCard.position)
+          const cards = col.cards.filter((c) => c._id !== movedCard._id);
           cards.splice(movedCard.position, 0, movedCard);
-
           return { ...col, cards };
         }
 
@@ -179,11 +165,9 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
         `Moviendo card ${cardId} de columna ${sourceColumnId} a ${destinationColumnId} posición ${newPosition}`
       );
 
-      // Buscar la tarjeta en la columna de origen
       let movedCard: types.Card | null = null;
 
       const newColumns = state.currentBoard.columns.map((col) => {
-        // 1. Remover de la columna de origen
         if (col._id === sourceColumnId) {
           const cardToMove = col.cards.find((c) => c._id === cardId);
           if (cardToMove) {
@@ -201,14 +185,12 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
         return col;
       });
 
-      // 2. Agregar a la columna de destino en la posición correcta
       if (movedCard) {
         const updatedColumns = newColumns.map((col) => {
           if (col._id === destinationColumnId) {
             const newCards = [...col.cards];
             newCards.splice(newPosition, 0, movedCard!);
 
-            // Reordenar posiciones
             const reorderedCards = newCards.map((card, index) => ({
               ...card,
               position: index,
@@ -229,7 +211,6 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
     }
 
     case "CARD_DELETED":
-      // ... (Tu lógica para eliminar tarjeta)
       return state;
 
     default:
@@ -243,7 +224,7 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
 
 interface BoardProviderProps {
   children: React.ReactNode;
-  boardId?: string; // Opcional si lo pasas desde un router
+  boardId?: string;
 }
 
 export const BoardProvider: React.FC<BoardProviderProps> = ({
@@ -251,12 +232,10 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
   boardId = "68e539772824cc4d0300ad88",
 }) => {
   const [state, dispatch] = useReducer(boardReducer, initialState);
-  const { isConnected, lastEvent, boardUsers } = useSocket(boardId);
+  const { isConnected, lastEvent } = useSocket(boardId);
 
-  // Ref para rastrear eventos ya procesados (no causa re-renders)
   const processedEventsRef = useRef<Set<string>>(new Set());
 
-  // Sincronizar el estado de conexión del socket
   useEffect(() => {
     dispatch({ type: "WS_CONNECTION_CHANGE", payload: isConnected });
   }, [isConnected]);
@@ -264,23 +243,19 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
   // Procesar eventos WebSocket entrantes
   useEffect(() => {
     if (lastEvent) {
-      // Crear una clave única para el evento
       const eventKey = `${lastEvent.eventName}-${
         lastEvent.payload?.card?._id || lastEvent.payload?.cardId || "unknown"
       }-${lastEvent.payload?.timestamp || Date.now()}`;
 
-      // Verificar si ya procesamos este evento
       if (processedEventsRef.current.has(eventKey)) {
+        console.log("[BoardContext] Evento ya procesado, ignorando");
         return;
       }
 
       console.log("[BoardContext] Processing event:", lastEvent.eventName);
-
-      // Marcar el evento como procesado
       processedEventsRef.current.add(eventKey);
 
       if (lastEvent.eventName === "cardCreated") {
-        // El payload del backend tiene la estructura: { card: Card, boardId: string, timestamp: string }
         const cardData = lastEvent.payload.card || lastEvent.payload;
         dispatch({
           type: "CARD_CREATED",
@@ -294,11 +269,27 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
           boardId: string;
           timestamp: string;
         };
+
+        // 👇 NUEVO: Verificar si ya aplicamos el cambio optimista
+        const currentColumn = state.currentBoard?.columns.find(
+          (col) => col._id === payload.destinationColumnId
+        );
+        const cardInPosition = currentColumn?.cards.find(
+          (c) =>
+            c._id === payload.card._id && c.position === payload.card.position
+        );
+
+        if (cardInPosition) {
+          console.log(
+            "[BoardContext] Evento WS coincide con estado optimista, ignorando"
+          );
+          return;
+        }
+
         dispatch({ type: "WS_CARD_MOVED", payload });
       }
-      // Aquí se procesarán los demás eventos...
     }
-  }, [lastEvent]);
+  }, [lastEvent, state.currentBoard]);
 
   const fetchBoard = useCallback(async (id: string) => {
     dispatch({ type: "FETCH_START" });
@@ -310,13 +301,11 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
     }
   }, []);
 
-  // Función para crear una tarjeta (Conexión al CRUD)
   const createCard = useCallback(
     async (columnId: string, title: string, description?: string) => {
       if (!state.currentBoard || !boardId) return;
 
       try {
-        // Llamada a la API REST. El backend se encargará de emitir el WS.
         await api.createCard(boardId, columnId, title, description, 0);
       } catch (e) {
         console.error("Error al crear la tarjeta via REST:", e);
@@ -325,7 +314,7 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
     [state.currentBoard, boardId]
   );
 
-  // Función para mover una tarjeta (Lógica de dnd-kit y API)
+  // 👇 FUNCIÓN moveCard CORREGIDA CON DISPATCH OPTIMISTA
   const moveCard = useCallback(
     async (
       cardId: string,
@@ -336,8 +325,19 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
       if (!state.currentBoard || !boardId) return;
 
       console.log(
-        `[API] Persistiendo movimiento de tarjeta ${cardId} a columna ${destinationColumnId} posición ${newPosition}`
+        `[moveCard] Iniciando movimiento de tarjeta ${cardId} a columna ${destinationColumnId} posición ${newPosition}`
       );
+
+      // 👇 1. UPDATE OPTIMISTA PRIMERO (UI instantánea)
+      dispatch({
+        type: "OPTIMISTIC_CARD_MOVE",
+        payload: {
+          cardId,
+          sourceColumnId,
+          destinationColumnId,
+          newPosition,
+        },
+      });
 
       try {
         const updates = {
@@ -345,29 +345,23 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
           columnId: destinationColumnId,
         };
 
-        // 👇 AGREGÁ ESTE LOG ANTES DE LA LLAMADA
-        console.log(
-          `[API] URL completa: /boards/${boardId}/columns/${sourceColumnId}/cards/${cardId}`
-        );
-        console.log("[API] Payload:", updates);
+        console.log(`[moveCard] Llamando API con updates:`, updates);
 
-        // Llamada a la API REST para persistir
+        // 👇 2. LLAMADA AL BACKEND (en segundo plano)
         await api.updateCard(boardId, sourceColumnId, cardId, updates);
 
-        console.log("[API] Movimiento persistido exitosamente");
-      } catch (e) {
-        // 👇 MODIFICÁ ESTE CATCH PARA VER EL ERROR COMPLETO
-        console.error("❌ [API] Error al mover la tarjeta:", e);
-        console.error(
-          "❌ [API] Detalles del error:",
-          e.response?.data || e.message
-        );
+        console.log("[moveCard] ✅ Movimiento persistido exitosamente");
+      } catch (e: any) {
+        console.error("❌ [moveCard] Error al mover la tarjeta:", e);
+        console.error("❌ [moveCard] Detalles:", e.response?.data || e.message);
+
+        // 👇 3. En caso de error, el WS eventualmente corregirá el estado
+        // O puedes implementar un action "REVERT_OPTIMISTIC_MOVE" aquí
       }
     },
-    [state.currentBoard, boardId]
+    [state.currentBoard, boardId, dispatch]
   );
 
-  // Llamada inicial para cargar el tablero
   useEffect(() => {
     if (boardId) {
       fetchBoard(boardId);
@@ -380,8 +374,8 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
         ...state,
         fetchBoard,
         createCard,
-        moveCard, // Añadimos la función de movimiento
-        dispatch, // Añadimos dispatch
+        moveCard,
+        dispatch,
       }}
     >
       {children}
