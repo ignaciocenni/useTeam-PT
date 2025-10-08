@@ -114,4 +114,20 @@ export const deleteCard = async (boardId, columnId, cardId) => {
   return response.data;
 };
 
+// ==================== EXPORT ====================
+
+// Disparar exportación de backlog
+export const exportBacklog = async (boardId, email) => {
+  const response = await api.post(`/api/v1/boards/${boardId}/export`, {
+    email,
+  });
+  return response.data;
+};
+
+// Obtener preview de datos de exportación
+export const getExportPreview = async (boardId) => {
+  const response = await api.get(`/api/v1/boards/${boardId}/export`);
+  return response.data;
+};
+
 export default api;

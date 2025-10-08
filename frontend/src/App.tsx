@@ -10,6 +10,8 @@ import {
   DragStartEvent,
 } from "@dnd-kit/core";
 import { ColumnContainer } from "./components/ColumnContainer";
+import { ExportModal } from "./components/ExportModal";
+import * as api from "./services/api";
 
 // ----------------------------------------------------
 // Componente principal de visualización del tablero
@@ -27,6 +29,7 @@ function BoardPageContent() {
   } = useBoard();
 
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // 👇 NUEVO: Log temporal para debug
   useEffect(() => {
@@ -52,6 +55,22 @@ function BoardPageContent() {
     }
   };
 
+  const handleExport = async (email: string) => {
+    if (!currentBoard) return;
+
+    try {
+      const result = await api.exportBacklog(currentBoard._id, email);
+      console.log("[EXPORT] Resultado:", result);
+
+      if (!result.success) {
+        throw new Error(result.message || "Error al exportar");
+      }
+    } catch (error: any) {
+      console.error("[EXPORT] Error:", error);
+      throw error;
+    }
+  };
+
   // Definimos el sensor de puntero con un pequeño retraso
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -64,7 +83,7 @@ function BoardPageContent() {
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const activeData = active.data.current;
-    
+
     if (activeData?.type === "Card") {
       setActiveCard(activeData.card);
     }
@@ -180,7 +199,9 @@ function BoardPageContent() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h1 className="text-xl font-semibold text-gray-700">Cargando Tablero...</h1>
+          <h1 className="text-xl font-semibold text-gray-700">
+            Cargando Tablero...
+          </h1>
         </div>
       </div>
     );
@@ -203,7 +224,9 @@ function BoardPageContent() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-400 text-6xl mb-4">📋</div>
-          <h1 className="text-xl font-semibold text-gray-600">No se encontró el tablero</h1>
+          <h1 className="text-xl font-semibold text-gray-600">
+            No se encontró el tablero
+          </h1>
         </div>
       </div>
     );
@@ -216,24 +239,41 @@ function BoardPageContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">{currentBoard.title}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {currentBoard.title}
+              </h1>
               {currentBoard.description && (
-                <p className="ml-4 text-gray-600 text-sm">{currentBoard.description}</p>
+                <p className="ml-4 text-gray-600 text-sm">
+                  {currentBoard.description}
+                </p>
               )}
             </div>
-            
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    isConnected ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></div>
                 <span className="text-sm font-medium text-gray-700">
-                  {isConnected ? 'Conectado' : 'Desconectado'}
+                  {isConnected ? "Conectado" : "Desconectado"}
                 </span>
               </div>
-              
+
+              {/* 👇 NUEVO: Botón de Exportar */}
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+              >
+                <span>📊</span>
+                <span>Exportar Backlog</span>
+              </button>
+
               <button
                 onClick={handleCreateTestCard}
                 className={`bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg ${
-                  !currentBoard.columns?.length && "opacity-50 cursor-not-allowed"
+                  !currentBoard.columns?.length &&
+                  "opacity-50 cursor-not-allowed"
                 }`}
                 disabled={!currentBoard.columns?.length}
               >
@@ -245,8 +285,8 @@ function BoardPageContent() {
       </header>
 
       <main className="max-w-7xl mx-auto p-6">
-        <DndContext 
-          sensors={sensors} 
+        <DndContext
+          sensors={sensors}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
@@ -255,13 +295,17 @@ function BoardPageContent() {
               <ColumnContainer key={column._id} column={column} />
             ))}
           </div>
-          
+
           <DragOverlay>
             {activeCard ? (
               <div className="bg-blue-50 p-4 rounded-lg shadow-2xl border-2 border-blue-500 transform rotate-1 scale-110">
-                <h3 className="font-medium text-blue-900">{activeCard.title}</h3>
+                <h3 className="font-medium text-blue-900">
+                  {activeCard.title}
+                </h3>
                 {activeCard.description && (
-                  <p className="text-sm text-blue-700 mt-1">{activeCard.description}</p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    {activeCard.description}
+                  </p>
                 )}
                 <div className="mt-2 text-xs text-blue-600 font-medium">
                   Arrastrando...
@@ -271,6 +315,13 @@ function BoardPageContent() {
           </DragOverlay>
         </DndContext>
       </main>
+      {/* 👇 NUEVO: Modal de Exportación */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+        boardTitle={currentBoard?.title || "Tablero"}
+      />
     </div>
   );
 }
