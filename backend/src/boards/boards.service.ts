@@ -30,6 +30,26 @@ export class BoardsService {
     return await newBoard.save();
   }
 
+  // Obtener un tablero completo con sus columnas y tarjetas (para exportar)
+  async getBoard(boardId: string) {
+    const board = await this.boardModel
+      .findById(boardId)
+      .populate({
+        path: 'columns',
+        populate: {
+          path: 'cards',
+          options: { sort: { position: 1 } },
+        },
+      })
+      .exec();
+
+    if (!board) {
+      throw new Error('Board no encontrado');
+    }
+
+    return board;
+  }
+
   // Obtener todos los tableros
   async getAllBoards() {
     return await this.boardModel.find().exec(); // .find() sin parámetros = todos los documentos
@@ -137,14 +157,14 @@ export class BoardsService {
       description,
       position: position || 0,
     });
-    
+
     const savedCard = await newCard.save();
 
     // Emitir evento al board específico
     this.boardsGateway.emitToBoard(boardId, 'cardCreated', {
       card: savedCard.toObject(),
       boardId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     return savedCard;
@@ -197,7 +217,7 @@ export class BoardsService {
       sourceColumnId: columnId,
       destinationColumnId: updatedCard.columnId.toString(),
       boardId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     // 👇 NUEVO: Log antes de emitir

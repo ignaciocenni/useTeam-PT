@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { BoardsController } from './boards.controller';
 import { ColumnsController } from './columns.controller';
 import { CardsController } from './cards.controller';
+import { ExportController } from './export.controller'; // 👈 NUEVO
 import { BoardsService } from './boards.service';
 import { BoardsGateway } from './boards.gateway';
 import { BoardSchema, Board } from './board.schema';
@@ -11,14 +12,18 @@ import { CardSchema, Card } from './card.schema';
 
 @Module({
   imports: [
-    // Importamos los schemas para que Mongoose sepa qué Modelos usar.
     MongooseModule.forFeature([
       { name: Board.name, schema: BoardSchema },
       { name: Column.name, schema: ColumnSchema },
       { name: Card.name, schema: CardSchema },
     ]),
   ],
-  controllers: [BoardsController, ColumnsController, CardsController],
+  controllers: [
+    BoardsController,
+    ColumnsController,
+    CardsController,
+    ExportController, // 👈 NUEVO
+  ],
   providers: [BoardsService, BoardsGateway],
   exports: [BoardsService, BoardsGateway],
 })
