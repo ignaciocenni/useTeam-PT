@@ -1,8 +1,7 @@
-﻿useTeam-PT
-├── backend
-│   ├── src
-│   │   ├── boards
-│   │   │   ├── dto
+﻿├── [backend]
+│   ├── [src]
+│   │   ├── [boards]
+│   │   │   ├── [dto]
 │   │   │   │   ├── create-board.dto.ts
 │   │   │   │   ├── create-card.dto.ts
 │   │   │   │   ├── create-column.dto.ts
@@ -19,13 +18,15 @@
 │   │   │   ├── card.schema.ts
 │   │   │   ├── cards.controller.ts
 │   │   │   ├── column.schema.ts
-│   │   │   └── columns.controller.ts
+│   │   │   ├── columns.controller.ts
+│   │   │   ├── export.controller.ts
+│   │   │   └── fix-board.controller.ts
 │   │   ├── app.controller.spec.ts
 │   │   ├── app.controller.ts
 │   │   ├── app.module.ts
 │   │   ├── app.service.ts
 │   │   └── main.ts
-│   ├── test
+│   ├── [test]
 │   │   ├── app.e2e-spec.ts
 │   │   └── jest-e2e.json
 │   ├── .env
@@ -39,22 +40,23 @@
 │   ├── README.md
 │   ├── tsconfig.build.json
 │   └── tsconfig.json
-├── frontend
-│   ├── public
+├── [frontend]
+│   ├── [public]
 │   │   └── vite.svg
-│   ├── src
-│   │   ├── assets
+│   ├── [src]
+│   │   ├── [assets]
 │   │   │   └── react.svg
-│   │   ├── components
+│   │   ├── [components]
 │   │   │   ├── CardItem.tsx
-│   │   │   └── ColumnContainer.tsx
-│   │   ├── context
+│   │   │   ├── ColumnContainer.tsx
+│   │   │   └── ExportModal.tsx
+│   │   ├── [context]
 │   │   │   └── BoardContext.tsx
-│   │   ├── hooks
+│   │   ├── [hooks]
 │   │   │   └── useSocket.ts
-│   │   ├── services
+│   │   ├── [services]
 │   │   │   └── api.js
-│   │   ├── types
+│   │   ├── [types]
 │   │   │   └── board.ts
 │   │   ├── App.tsx
 │   │   ├── index.css
@@ -70,6 +72,7 @@
 │   ├── README.md
 │   ├── tailwind.config.js
 │   └── vite.config.js
-├── n8n
+├── [n8n]
 ├── arbol_proyecto.txt
+├── project-tree.txt
 └── README.md
