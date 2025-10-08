@@ -28,7 +28,6 @@ interface BoardState {
   isConnected: boolean;
 }
 
-// 💡 USAR types.Card
 type BoardAction =
   | { type: "FETCH_START" }
   | { type: "FETCH_SUCCESS"; payload: types.Board }
@@ -42,7 +41,17 @@ type BoardAction =
         sourceColumnId: string;
         destinationColumnId: string;
       };
-    } // 💡 Nueva acción WS
+    }
+  // 👇 NUEVO ACTION PARA UPDATE OPTIMISTA
+  | {
+      type: "OPTIMISTIC_CARD_MOVE";
+      payload: {
+        cardId: string;
+        sourceColumnId: string;
+        destinationColumnId: string;
+        newPosition: number;
+      };
+    }
   | { type: "CARD_DELETED"; payload: { cardId: string; columnId: string } };
 
 interface BoardContextType extends BoardState {
@@ -129,7 +138,10 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
 
       const newColumns = state.currentBoard.columns.map((col) => {
         // 1. Quitar la tarjeta de la columna de origen (si es diferente a la de destino)
-        if (col._id === sourceColumnId && sourceColumnId !== destinationColumnId) {
+        if (
+          col._id === sourceColumnId &&
+          sourceColumnId !== destinationColumnId
+        ) {
           return {
             ...col,
             cards: col.cards.filter((c) => c._id !== movedCard._id),
@@ -153,6 +165,67 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
         ...state,
         currentBoard: { ...state.currentBoard, columns: newColumns },
       };
+    }
+
+    // 💡 UPDATE OPTIMISTA (se ejecuta ANTES de que llegue el WS)
+    case "OPTIMISTIC_CARD_MOVE": {
+      if (!state.currentBoard) return state;
+
+      const { cardId, sourceColumnId, destinationColumnId, newPosition } =
+        action.payload;
+
+      console.log(
+        "[REDUCER] OPTIMISTIC_CARD_MOVE:",
+        `Moviendo card ${cardId} de columna ${sourceColumnId} a ${destinationColumnId} posición ${newPosition}`
+      );
+
+      // Buscar la tarjeta en la columna de origen
+      let movedCard: types.Card | null = null;
+
+      const newColumns = state.currentBoard.columns.map((col) => {
+        // 1. Remover de la columna de origen
+        if (col._id === sourceColumnId) {
+          const cardToMove = col.cards.find((c) => c._id === cardId);
+          if (cardToMove) {
+            movedCard = {
+              ...cardToMove,
+              columnId: destinationColumnId,
+              position: newPosition,
+            };
+          }
+          return {
+            ...col,
+            cards: col.cards.filter((c) => c._id !== cardId),
+          };
+        }
+        return col;
+      });
+
+      // 2. Agregar a la columna de destino en la posición correcta
+      if (movedCard) {
+        const updatedColumns = newColumns.map((col) => {
+          if (col._id === destinationColumnId) {
+            const newCards = [...col.cards];
+            newCards.splice(newPosition, 0, movedCard!);
+
+            // Reordenar posiciones
+            const reorderedCards = newCards.map((card, index) => ({
+              ...card,
+              position: index,
+            }));
+
+            return { ...col, cards: reorderedCards };
+          }
+          return col;
+        });
+
+        return {
+          ...state,
+          currentBoard: { ...state.currentBoard, columns: updatedColumns },
+        };
+      }
+
+      return state;
     }
 
     case "CARD_DELETED":
@@ -179,7 +252,7 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
 }) => {
   const [state, dispatch] = useReducer(boardReducer, initialState);
   const { isConnected, lastEvent, boardUsers } = useSocket(boardId);
-  
+
   // Ref para rastrear eventos ya procesados (no causa re-renders)
   const processedEventsRef = useRef<Set<string>>(new Set());
 
@@ -192,18 +265,20 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({
   useEffect(() => {
     if (lastEvent) {
       // Crear una clave única para el evento
-      const eventKey = `${lastEvent.eventName}-${lastEvent.payload?.card?._id || lastEvent.payload?.cardId || 'unknown'}-${lastEvent.payload?.timestamp || Date.now()}`;
-      
+      const eventKey = `${lastEvent.eventName}-${
+        lastEvent.payload?.card?._id || lastEvent.payload?.cardId || "unknown"
+      }-${lastEvent.payload?.timestamp || Date.now()}`;
+
       // Verificar si ya procesamos este evento
       if (processedEventsRef.current.has(eventKey)) {
         return;
       }
-      
+
       console.log("[BoardContext] Processing event:", lastEvent.eventName);
-      
+
       // Marcar el evento como procesado
       processedEventsRef.current.add(eventKey);
-      
+
       if (lastEvent.eventName === "cardCreated") {
         // El payload del backend tiene la estructura: { card: Card, boardId: string, timestamp: string }
         const cardData = lastEvent.payload.card || lastEvent.payload;
