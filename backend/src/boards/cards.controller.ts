@@ -37,7 +37,10 @@ export class CardsController {
     );
 
     // LÓGICA DE TIEMPO REAL: Emitir el evento WebSocket
-    this.boardsGateway.emitBoardUpdate('cardCreated', newCard); // PENDIENTE: Usar un ID de Tablero si fuera más específico
+    // PENDIENTE: Usar un ID de Tablero si fuera más específico
+    // NOTA: El WS de creación se gestionará por el service/gateway para usar el boardId
+    // que viene del URL del Controller padre, pero por ahora lo dejamos genérico.
+    this.boardsGateway.emitBoardUpdate('cardCreated', newCard);
 
     return newCard;
   }
@@ -53,16 +56,23 @@ export class CardsController {
   @Patch(':cardId')
   @HttpCode(HttpStatus.OK)
   async update(
+    // 💡 FIX CRÍTICO: Necesitamos todos los IDs de la URL
+    @Param('boardId') boardId: string,
+    @Param('columnId') columnId: string,
     @Param('cardId') cardId: string,
     @Body() updateCardDto: UpdateCardDto,
   ) {
+    // 💡 FIX: Llamada correcta al Service con los 4 argumentos
     const updatedCard = await this.boardsService.updateCard(
+      boardId,
+      columnId,
       cardId,
       updateCardDto,
     );
 
-    // EMITIR EVENTO: Notificamos una actualización (incluye movimiento de posición o columna)
-    this.boardsGateway.emitBoardUpdate('cardUpdated', updatedCard);
+    // NOTA: La emisión del evento 'cardMoved' ya está en BoardsService,
+    // pero si deseas emitir otros eventos aquí (como 'cardTitleUpdated'),
+    // puedes usar this.boardsGateway.emitBoardUpdate(eventName, updatedCard);
 
     return updatedCard;
   }
@@ -70,7 +80,12 @@ export class CardsController {
   // ==================== DELETE /.../cards/:cardId ====================
   @Delete(':cardId')
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('cardId') cardId: string) {
+  async remove(
+    @Param('cardId') cardId: string,
+    // 💡 IMPORTANTE: Si necesitas emitir el WS, también debes capturar el boardId y columnId
+    // @Param('boardId') boardId: string,
+    // @Param('columnId') columnId: string,
+  ) {
     // OPCIÓN MÁS LIMPIA: No asignamos la variable
     await this.boardsService.deleteCard(cardId);
 

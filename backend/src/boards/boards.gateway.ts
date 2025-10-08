@@ -1,5 +1,3 @@
-// backend/src/boards/boards.gateway.ts
-
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -32,7 +30,7 @@ export class BoardsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   emitBoardUpdate(eventName: string, payload: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    this.server.emit('boardUpdated', { eventName, payload });
+    console.log(`[BoardsGateway] Emitiendo evento: ${eventName}`, payload);
+    this.server.emit(eventName, payload);
   }
 }

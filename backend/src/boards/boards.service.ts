@@ -1,10 +1,12 @@
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
+import { UpdateCardDto } from './dto/update-card.dto'; // 💡 FIX: Import de UpdateCardDto
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Board } from './board.schema';
+import { BoardsGateway } from './boards.gateway';
 import { Column } from './column.schema';
 import { Card } from './card.schema';
 
@@ -15,6 +17,8 @@ export class BoardsService {
     @InjectModel(Board.name) private boardModel: Model<Board>,
     @InjectModel(Column.name) private columnModel: Model<Column>,
     @InjectModel(Card.name) private cardModel: Model<Card>,
+    // 💡 FIX: Inyección correcta y única del Gateway
+    private readonly boardsGateway: BoardsGateway,
   ) {}
 
   // ==================== BOARDS ====================
@@ -141,14 +145,58 @@ export class BoardsService {
   }
 
   // Actualizar una tarjeta (moverla de columna o cambiar posición)
-  async updateCard(cardId: string, updates: Partial<Card>) {
-    return await this.cardModel
-      .findByIdAndUpdate(
-        cardId,
-        updates,
-        { new: true }, // { new: true } = devuelve el documento actualizado (no el viejo)
+  async updateCard(
+    boardId: string,
+    columnId: string,
+    cardId: string,
+    updateCardDto: UpdateCardDto,
+  ): Promise<Card> {
+    // 👇 NUEVO: Log para debug
+    console.log(`[BoardsService] updateCard llamado:`);
+    console.log(`  - boardId: ${boardId}`);
+    console.log(`  - columnId: ${columnId}`);
+    console.log(`  - cardId: ${cardId}`);
+    console.log(`  - updates:`, updateCardDto);
+
+    // 1. Buscamos y actualizamos la tarjeta en la DB
+    const updatedCard = await this.cardModel
+      .findOneAndUpdate(
+        { _id: cardId, columnId: columnId },
+        {
+          $set: {
+            ...updateCardDto,
+          },
+        },
+        { new: true },
       )
       .exec();
+
+    if (!updatedCard) {
+      throw new NotFoundException(
+        `Card with ID ${cardId} not found in column ${columnId}`,
+      );
+    }
+
+    // 👇 NUEVO: Log después de actualizar
+    console.log(`[BoardsService] Tarjeta actualizada:`, updatedCard.toObject());
+
+    // 💡 2. EMISIÓN DEL EVENTO WEBSOCKET
+
+    const payload = {
+      card: updatedCard.toObject(),
+      sourceColumnId: columnId,
+      destinationColumnId: updatedCard.columnId.toString(),
+    };
+
+    // 👇 NUEVO: Log antes de emitir
+    console.log(
+      `[BoardsService] Emitiendo evento 'cardMoved' con payload:`,
+      payload,
+    );
+
+    this.boardsGateway.emitBoardUpdate('cardMoved', payload);
+
+    return updatedCard.toObject();
   }
 
   // Eliminar una tarjeta

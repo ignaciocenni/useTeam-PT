@@ -1,39 +1,31 @@
 export interface Card {
   _id: string;
-  title: string;
-  description?: string;
-  position: number;
   columnId: string;
+  title: string;
+  description: string;
+  position: number;
   createdAt: string;
-  updatedAt: string;
+  // Añade aquí cualquier otro campo que tu backend devuelva para Card
 }
 
 export interface Column {
   _id: string;
+  boardId: string;
   title: string;
   position: number;
-  cards: Card[]; // Array de tarjetas dentro de esta columna
-  boardId: string;
-  createdAt: string;
-  updatedAt: string;
+  cards: Card[]; // Array de tarjetas
+  // Añade aquí cualquier otro campo que tu backend devuelva para Column
 }
 
 export interface Board {
   _id: string;
   title: string;
-  description?: string;
-  columns: Column[]; // Array de columnas dentro de este tablero
-  createdAt: string;
-  updatedAt: string;
+  description: string;
+  columns: Column[]; // Array de columnas
+  // Añade aquí cualquier otro campo que tu backend devuelva para Board
 }
 
-// Tipos para el Payload del WebSocket
 export interface WSEventPayload {
-  eventName:
-    | "cardCreated"
-    | "cardUpdated"
-    | "cardDeleted"
-    | "columnCreated"
-    | "columnDeleted";
-  payload: Card | Column; // El objeto de datos que se modificó
+  eventName: string;
+  payload: any; // El contenido del evento (puede ser Card, Column, etc.)
 }
