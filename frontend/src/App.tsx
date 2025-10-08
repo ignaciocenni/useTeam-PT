@@ -8,6 +8,10 @@ import {
   PointerSensor,
   DragOverlay,
   DragStartEvent,
+  DragEndEvent,
+  DragMoveEvent,
+  MouseSensor,
+  TouchSensor,
 } from "@dnd-kit/core";
 import { ColumnContainer } from "./components/ColumnContainer";
 import { ExportModal } from "./components/ExportModal";
@@ -71,11 +75,16 @@ function BoardPageContent() {
     }
   };
 
-  // Definimos el sensor de puntero con un pequeño retraso
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 8, // La persona debe mover el puntero al menos 8px para considerarlo arrastre
+        distance: 10, // Mover 10px para activar
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
       },
     })
   );
@@ -94,16 +103,13 @@ function BoardPageContent() {
     const { active, over } = event;
     setActiveCard(null);
 
-    // Si no hay tablero o no soltó sobre una zona válida, salimos
     if (!over || !currentBoard) return;
 
-    const activeData = active.data.current; // Tarjeta que se arrastró
-    const overData = over.data.current; // Tarjeta o columna sobre la que se soltó
-
-    // Extraemos la tarjeta que se está moviendo
+    const activeData = active.data.current;
+    const overData = over.data.current;
     const activeCard = activeData.card;
 
-    // Encontramos en qué columna está la tarjeta activa
+    // Encontrar columna de origen
     const sourceColumn = currentBoard.columns.find((col) =>
       col.cards.some((card) => card._id === activeCard._id)
     );
@@ -113,17 +119,15 @@ function BoardPageContent() {
       return;
     }
 
-    // --- CASO 1: Mover DENTRO de la misma columna ---
+    // --- CASO 1: Mover sobre otra TARJETA ---
     if (activeData.type === "Card" && overData.type === "Card") {
       const overCard = overData.card;
 
-      // Verificamos si la tarjeta se movió a una posición diferente
       if (activeCard._id === overCard._id) {
-        // Es la misma tarjeta, no hacer nada
-        return;
+        return; // Misma tarjeta, no hacer nada
       }
 
-      // Encontramos en qué columna está la tarjeta objetivo
+      // Encontrar columna de destino
       const targetColumn = currentBoard.columns.find((col) =>
         col.cards.some((card) => card._id === overCard._id)
       );
@@ -133,7 +137,7 @@ function BoardPageContent() {
         return;
       }
 
-      // --- CASO 1A: MISMA COLUMNA ---
+      // MISMA COLUMNA - Reordenar
       if (sourceColumn._id === targetColumn._id) {
         const cardsInColumn = [...sourceColumn.cards];
         const oldIndex = cardsInColumn.findIndex(
@@ -141,56 +145,57 @@ function BoardPageContent() {
         );
         const newIndex = cardsInColumn.findIndex((c) => c._id === overCard._id);
 
-        // Reordenar localmente (array-move manual)
         const [removed] = cardsInColumn.splice(oldIndex, 1);
         cardsInColumn.splice(newIndex, 0, removed);
 
-        // Calcular la nueva posición (el índice en el array)
         const newPosition = cardsInColumn.findIndex(
           (c) => c._id === activeCard._id
         );
 
         console.log(
-          `[DND] Moviendo tarjeta "${activeCard.title}" dentro de la columna "${sourceColumn.title}" a posición ${newPosition}`
+          `[DND] Moviendo "${activeCard.title}" en columna "${sourceColumn.title}" a posición ${newPosition}`
         );
 
-        // Llamar a la API para persistir
         moveCard(
           activeCard._id,
-          sourceColumn._id, // Columna de origen
-          sourceColumn._id, // Columna de destino (es la misma)
+          sourceColumn._id,
+          sourceColumn._id,
           newPosition
         );
       }
-      // --- CASO 1B: COLUMNAS DIFERENTES ---
+      // COLUMNAS DIFERENTES
       else {
-        // Calcular la nueva posición en la columna de destino
         const cardsInTargetColumn = [...targetColumn.cards];
         const targetIndex = cardsInTargetColumn.findIndex(
           (c) => c._id === overCard._id
         );
-
-        // La tarjeta se insertará ANTES de la tarjeta sobre la que se soltó
         const newPosition = targetIndex;
 
         console.log(
-          `[DND] Moviendo tarjeta "${activeCard.title}" de columna "${sourceColumn.title}" a "${targetColumn.title}" en posición ${newPosition}`
+          `[DND] Moviendo "${activeCard.title}" de "${sourceColumn.title}" a "${targetColumn.title}" posición ${newPosition}`
         );
 
-        // Llamar a la API para persistir
         moveCard(
           activeCard._id,
-          sourceColumn._id, // Columna de origen
-          targetColumn._id, // Columna de destino (diferente)
+          sourceColumn._id,
+          targetColumn._id,
           newPosition
         );
       }
     }
-
     // --- CASO 2: Soltar sobre una COLUMNA vacía o al final ---
-    // (Esto pasa cuando soltás sobre el fondo de la columna, no sobre una tarjeta)
-    // Por ahora, no implementamos esto para simplificar
-    // Pero si querés, podemos agregarlo después
+    else if (activeData.type === "Card" && overData.type === "Column") {
+      const targetColumn = overData.column;
+
+      console.log(
+        `[DND] Moviendo "${activeCard.title}" a columna "${targetColumn.title}" (al final)`
+      );
+
+      // Insertar al final de la columna
+      const newPosition = targetColumn.cards.length;
+
+      moveCard(activeCard._id, sourceColumn._id, targetColumn._id, newPosition);
+    }
   };
 
   // --- Renderizado de Estado ---
@@ -295,20 +300,33 @@ function BoardPageContent() {
               <ColumnContainer key={column._id} column={column} />
             ))}
           </div>
-
-          <DragOverlay>
+          <DragOverlay
+            dropAnimation={{
+              duration: 200,
+              easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
+            }}
+          >
             {activeCard ? (
-              <div className="bg-blue-50 p-4 rounded-lg shadow-2xl border-2 border-blue-500 transform rotate-1 scale-110">
-                <h3 className="font-medium text-blue-900">
+              <div
+                className="bg-white p-4 rounded-lg shadow-2xl border-2 border-blue-500 cursor-grabbing"
+                style={{
+                  width: "320px", // 👈 Mismo ancho que las tarjetas
+                  opacity: 0.95,
+                }}
+              >
+                <h3 className="font-medium text-gray-900">
                   {activeCard.title}
                 </h3>
                 {activeCard.description && (
-                  <p className="text-sm text-blue-700 mt-1">
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                     {activeCard.description}
                   </p>
                 )}
-                <div className="mt-2 text-xs text-blue-600 font-medium">
-                  Arrastrando...
+                <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                  <span>Posición: {activeCard.position}</span>
+                  <span className="text-blue-600 font-medium">
+                    📦 Moviendo...
+                  </span>
                 </div>
               </div>
             ) : null}
