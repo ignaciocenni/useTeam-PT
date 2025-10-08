@@ -1,0 +1,75 @@
+﻿useTeam-PT
+├── backend
+│   ├── src
+│   │   ├── boards
+│   │   │   ├── dto
+│   │   │   │   ├── create-board.dto.ts
+│   │   │   │   ├── create-card.dto.ts
+│   │   │   │   ├── create-column.dto.ts
+│   │   │   │   ├── update-board.dto.ts
+│   │   │   │   ├── update-card.dto.ts
+│   │   │   │   └── update-column.dto.ts
+│   │   │   ├── board.schema.ts
+│   │   │   ├── boards.controller.spec.ts
+│   │   │   ├── boards.controller.ts
+│   │   │   ├── boards.gateway.ts
+│   │   │   ├── boards.module.ts
+│   │   │   ├── boards.service.spec.ts
+│   │   │   ├── boards.service.ts
+│   │   │   ├── card.schema.ts
+│   │   │   ├── cards.controller.ts
+│   │   │   ├── column.schema.ts
+│   │   │   └── columns.controller.ts
+│   │   ├── app.controller.spec.ts
+│   │   ├── app.controller.ts
+│   │   ├── app.module.ts
+│   │   ├── app.service.ts
+│   │   └── main.ts
+│   ├── test
+│   │   ├── app.e2e-spec.ts
+│   │   └── jest-e2e.json
+│   ├── .env
+│   ├── .eslintignore
+│   ├── .gitignore
+│   ├── .prettierrc
+│   ├── eslint.config.mjs
+│   ├── nest-cli.json
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── README.md
+│   ├── tsconfig.build.json
+│   └── tsconfig.json
+├── frontend
+│   ├── public
+│   │   └── vite.svg
+│   ├── src
+│   │   ├── assets
+│   │   │   └── react.svg
+│   │   ├── components
+│   │   │   ├── CardItem.tsx
+│   │   │   └── ColumnContainer.tsx
+│   │   ├── context
+│   │   │   └── BoardContext.tsx
+│   │   ├── hooks
+│   │   │   └── useSocket.ts
+│   │   ├── services
+│   │   │   └── api.js
+│   │   ├── types
+│   │   │   └── board.ts
+│   │   ├── App.tsx
+│   │   ├── index.css
+│   │   ├── main.tsx
+│   │   └── vite-env.d.ts
+│   ├── .env
+│   ├── .gitignore
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── README.md
+│   ├── tailwind.config.js
+│   └── vite.config.js
+├── n8n
+├── arbol_proyecto.txt
+└── README.md
